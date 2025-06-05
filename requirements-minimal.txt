@@ -1,0 +1,15 @@
+# Minimal requirements for production
+fastapi==0.108.0
+uvicorn[standard]==0.25.0
+websockets==12.0
+python-socketio==5.11.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+openai==1.30.1
+loguru==0.7.2
+backoff==2.2.1
+aiofiles==23.2.1
+redis==5.0.1
+httpx==0.25.2

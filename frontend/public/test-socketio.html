@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CX Futurist Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .success { background: #1a3a1a; border-color: #0f0; }
+        .error { background: #3a1a1a; border-color: #f00; }
+        .pending { background: #3a3a1a; border-color: #ff0; }
+        .message { margin: 5px 0; padding: 5px; background: #2a2a2a; }
+        pre { white-space: pre-wrap; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>CX Futurist AI - Socket.IO Connection Test</h1>
+    
+    <div class="test pending" id="connection-test">
+        <h3>Socket.IO Connection</h3>
+        <pre id="connection-result">Connecting...</pre>
+    </div>
+    
+    <div id="controls" style="display: none;">
+        <h3>Test Controls</h3>
+        <button onclick="testPing()">Test Ping</button>
+        <button onclick="testSubscribe()">Test Subscribe</button>
+        <button onclick="testAnalysis()">Test Analysis</button>
+        <button onclick="clearMessages()">Clear Messages</button>
+    </div>
+    
+    <div id="messages">
+        <h3>Messages</h3>
+        <div id="message-list"></div>
+    </div>
+
+    <script>
+        // Production API URL
+        const API_URL = 'https://cx-futurist-api-407245526867.us-central1.run.app';
+        
+        // Connect to Socket.IO
+        const socket = io(API_URL, {
+            path: '/ws/socket.io/',
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 20000
+        });
+
+        const connectionDiv = document.getElementById('connection-test');
+        const connectionResult = document.getElementById('connection-result');
+        const messageList = document.getElementById('message-list');
+        const controls = document.getElementById('controls');
+
+        function addMessage(type, data) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            msgDiv.innerHTML = `<strong>${type}:</strong> ${JSON.stringify(data, null, 2)}`;
+            messageList.insertBefore(msgDiv, messageList.firstChild);
+        }
+
+        // Socket.IO event handlers
+        socket.on('connect', () => {
+            connectionDiv.className = 'test success';
+            connectionResult.textContent = '✓ Connected to Socket.IO server\nSocket ID: ' + socket.id;
+            controls.style.display = 'block';
+            addMessage('connect', { id: socket.id });
+        });
+
+        socket.on('disconnect', (reason) => {
+            connectionDiv.className = 'test error';
+            connectionResult.textContent = '✗ Disconnected: ' + reason;
+            controls.style.display = 'none';
+            addMessage('disconnect', { reason });
+        });
+
+        socket.on('connect_error', (error) => {
+            connectionDiv.className = 'test error';
+            connectionResult.textContent = '✗ Connection error: ' + error.message;
+            addMessage('connect_error', { error: error.message });
+        });
+
+        // Handle all incoming events
+        socket.onAny((eventName, ...args) => {
+            addMessage(eventName, args[0] || {});
+        });
+
+        // Test functions
+        function testPing() {
+            socket.emit('ping');
+            addMessage('sent', { type: 'ping' });
+        }
+
+        function testSubscribe() {
+            socket.emit('subscribe', { type: 'all' });
+            addMessage('sent', { type: 'subscribe', data: { type: 'all' } });
+        }
+
+        function testAnalysis() {
+            const data = {
+                id: 'test_' + Date.now(),
+                topic: 'Future of Customer Experience with AI'
+            };
+            socket.emit('request_analysis', data);
+            addMessage('sent', { type: 'request_analysis', data });
+        }
+
+        function clearMessages() {
+            messageList.innerHTML = '';
+        }
+
+        // Also test the API health endpoint
+        fetch(API_URL + '/health')
+            .then(response => response.json())
+            .then(data => {
+                addMessage('api_health', data);
+            })
+            .catch(error => {
+                addMessage('api_error', { error: error.message });
+            });
+    </script>
+</body>
+</html>

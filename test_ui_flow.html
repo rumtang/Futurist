@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CX Futurist AI - UI Flow Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .status-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .status-card h3 {
+            margin-top: 0;
+            color: #60a5fa;
+        }
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .agent-status {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+        .agent-status.thinking {
+            border-color: #60a5fa;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        button {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .output {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .analysis-form {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .websocket-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        .websocket-status.connected {
+            background: #22c55e;
+        }
+        .websocket-status.disconnected {
+            background: #ef4444;
+        }
+        .message-log {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CX Futurist AI - Complete Flow Test</h1>
+        
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>🔌 System Status</h3>
+                <p>API: <span id="api-status">Checking...</span></p>
+                <p>WebSocket: <span id="ws-status">Disconnected</span><span class="websocket-status disconnected" id="ws-indicator"></span></p>
+                <p>Agents: <span id="agent-count">Unknown</span></p>
+            </div>
+            
+            <div class="status-card">
+                <h3>🤖 Agent Status</h3>
+                <div class="agent-grid" id="agent-grid">
+                    <!-- Agents will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-form">
+            <h3>🚀 Test Multi-Agent Analysis</h3>
+            <textarea 
+                id="topic-input" 
+                rows="3"
+                placeholder="Enter a topic to analyze...">How will AI agents transform customer service in the next 2 years?</textarea>
+            <button onclick="runAnalysis()" id="analyze-btn">Run Multi-Agent Analysis</button>
+            <button onclick="checkAgentStatus()" id="status-btn">Refresh Agent Status</button>
+            <button onclick="connectWebSocket()" id="ws-btn">Connect WebSocket</button>
+        </div>
+
+        <div class="status-card">
+            <h3>📡 WebSocket Messages</h3>
+            <div class="message-log" id="ws-messages">
+                Waiting for connection...
+            </div>
+        </div>
+
+        <div class="output" id="output" style="display: none;">
+            <h4>Analysis Output:</h4>
+            <pre id="output-content"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8100';
+        const WS_URL = 'ws://localhost:8100/ws';
+        let ws = null;
+        let currentRequestId = null;
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('api-status').textContent = data.status === 'healthy' ? '✅ Healthy' : '❌ Unhealthy';
+                
+                // Check agents
+                await checkAgentStatus();
+                
+            } catch (error) {
+                document.getElementById('api-status').textContent = '❌ Offline';
+                console.error('Health check failed:', error);
+            }
+        }
+        
+        async function checkAgentStatus() {
+            try {
+                const response = await fetch(`${API_URL}/api/agents/status`);
+                const data = await response.json();
+                
+                document.getElementById('agent-count').textContent = `${data.total_agents} agents`;
+                
+                const agentGrid = document.getElementById('agent-grid');
+                agentGrid.innerHTML = '';
+                
+                Object.entries(data.agents).forEach(([name, info]) => {
+                    const div = document.createElement('div');
+                    div.className = `agent-status ${info.status === 'thinking' ? 'thinking' : ''}`;
+                    div.innerHTML = `
+                        <strong>${name}</strong><br>
+                        ${info.status}
+                    `;
+                    agentGrid.appendChild(div);
+                });
+                
+            } catch (error) {
+                console.error('Agent status check failed:', error);
+            }
+        }
+        
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('WebSocket already connected');
+                return;
+            }
+            
+            log('Connecting to WebSocket...');
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                log('✅ WebSocket connected');
+                document.getElementById('ws-status').textContent = 'Connected';
+                document.getElementById('ws-indicator').className = 'websocket-status connected';
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (e) {
+                    log(`Raw message: ${event.data}`);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log(`❌ WebSocket error: ${error}`);
+            };
+            
+            ws.onclose = () => {
+                log('WebSocket disconnected');
+                document.getElementById('ws-status').textContent = 'Disconnected';
+                document.getElementById('ws-indicator').className = 'websocket-status disconnected';
+            };
+        }
+        
+        function handleWebSocketMessage(data) {
+            log(`Message: ${data.type} - ${JSON.stringify(data).substring(0, 100)}...`);
+            
+            // Update agent status in real-time
+            if (data.type === 'agent_update') {
+                checkAgentStatus();
+            }
+            
+            // Show analysis progress
+            if (data.type === 'analysis_update' && data.request_id === currentRequestId) {
+                showOutput(`Analysis Update: ${data.status}\n${JSON.stringify(data, null, 2)}`);
+            }
+        }
+        
+        function log(message) {
+            const messagesDiv = document.getElementById('ws-messages');
+            const timestamp = new Date().toLocaleTimeString();
+            messagesDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        async function runAnalysis() {
+            const topic = document.getElementById('topic-input').value.trim();
+            if (!topic) {
+                alert('Please enter a topic');
+                return;
+            }
+            
+            document.getElementById('analyze-btn').disabled = true;
+            showOutput('Submitting analysis request...');
+            
+            try {
+                // Submit analysis
+                const response = await fetch(`${API_URL}/api/analysis/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: topic,
+                        analysis_type: 'comprehensive',
+                        parameters: {
+                            depth: 'comprehensive',
+                            timeframe: '1-2 years'
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentRequestId = data.request_id;
+                    showOutput(`Analysis queued: ${data.request_id}\nEstimated completion: ${data.estimated_completion}\n\nPolling for results...`);
+                    
+                    // Poll for results
+                    pollForResults(data.request_id);
+                } else {
+                    showOutput(`Error: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                showOutput(`Error: ${error.message}`);
+            } finally {
+                document.getElementById('analyze-btn').disabled = false;
+            }
+        }
+        
+        async function pollForResults(requestId) {
+            const maxAttempts = 60; // 1 minute
+            let attempts = 0;
+            
+            const interval = setInterval(async () => {
+                attempts++;
+                
+                try {
+                    const response = await fetch(`${API_URL}/api/analysis/${requestId}`);
+                    const data = await response.json();
+                    
+                    // Update agent status
+                    checkAgentStatus();
+                    
+                    if (data.status === 'completed') {
+                        clearInterval(interval);
+                        showOutput(`✅ Analysis completed!\n\n${JSON.stringify(data.results, null, 2)}`);
+                    } else if (data.status === 'failed') {
+                        clearInterval(interval);
+                        showOutput(`❌ Analysis failed: ${data.error}`);
+                    } else {
+                        showOutput(`Status: ${data.status}\nAttempt ${attempts}/${maxAttempts}...`);
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        showOutput('⏱️ Analysis timed out');
+                    }
+                } catch (error) {
+                    clearInterval(interval);
+                    showOutput(`Error polling: ${error.message}`);
+                }
+            }, 1000);
+        }
+        
+        function showOutput(content) {
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output-content').textContent = content;
+        }
+        
+        // Initialize
+        checkHealth();
+        connectWebSocket();
+        
+        // Auto-refresh agent status
+        setInterval(checkAgentStatus, 2000);
+    </script>
+</body>
+</html>

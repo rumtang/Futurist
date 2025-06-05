@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CX Futurist Connection Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .success { background: #1a3a1a; border-color: #0f0; }
+        .error { background: #3a1a1a; border-color: #f00; }
+        .pending { background: #3a3a1a; border-color: #ff0; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>CX Futurist AI - Connection Test</h1>
+    
+    <div id="tests">
+        <div class="test pending" id="api-test">
+            <h3>API Health Check</h3>
+            <pre id="api-result">Testing...</pre>
+        </div>
+        
+        <div class="test pending" id="ws-test">
+            <h3>WebSocket Connection</h3>
+            <pre id="ws-result">Testing...</pre>
+        </div>
+        
+        <div class="test pending" id="cors-test">
+            <h3>CORS Test</h3>
+            <pre id="cors-result">Testing...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://cx-futurist-api-407245526867.us-central1.run.app';
+        const WS_URL = 'wss://cx-futurist-api-407245526867.us-central1.run.app/ws';
+
+        // Test 1: API Health Check
+        async function testAPI() {
+            const testDiv = document.getElementById('api-test');
+            const resultDiv = document.getElementById('api-result');
+            
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                testDiv.className = 'test success';
+                resultDiv.textContent = `✓ API is healthy\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                testDiv.className = 'test error';
+                resultDiv.textContent = `✗ API Error: ${error.message}\n${error.stack}`;
+            }
+        }
+
+        // Test 2: WebSocket Connection
+        function testWebSocket() {
+            const testDiv = document.getElementById('ws-test');
+            const resultDiv = document.getElementById('ws-result');
+            
+            try {
+                const ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    testDiv.className = 'test success';
+                    resultDiv.textContent = '✓ WebSocket connected successfully';
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                };
+                
+                ws.onmessage = (event) => {
+                    resultDiv.textContent += `\nReceived: ${event.data}`;
+                };
+                
+                ws.onerror = (error) => {
+                    testDiv.className = 'test error';
+                    resultDiv.textContent = `✗ WebSocket Error: ${error}\nCheck browser console for details`;
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = (event) => {
+                    resultDiv.textContent += `\nWebSocket closed: ${event.code} - ${event.reason}`;
+                };
+                
+                setTimeout(() => {
+                    if (ws.readyState !== WebSocket.OPEN) {
+                        testDiv.className = 'test error';
+                        resultDiv.textContent = '✗ WebSocket connection timeout';
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                testDiv.className = 'test error';
+                resultDiv.textContent = `✗ WebSocket Error: ${error.message}`;
+            }
+        }
+
+        // Test 3: CORS
+        async function testCORS() {
+            const testDiv = document.getElementById('cors-test');
+            const resultDiv = document.getElementById('cors-result');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/agents/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    testDiv.className = 'test success';
+                    resultDiv.textContent = `✓ CORS is properly configured\nAgents found: ${data.total_agents}`;
+                } else {
+                    testDiv.className = 'test error';
+                    resultDiv.textContent = `✗ CORS Error: ${response.status} ${response.statusText}`;
+                }
+            } catch (error) {
+                testDiv.className = 'test error';
+                resultDiv.textContent = `✗ CORS Error: ${error.message}`;
+            }
+        }
+
+        // Run all tests
+        testAPI();
+        testWebSocket();
+        testCORS();
+    </script>
+</body>
+</html>

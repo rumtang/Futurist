@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CX Futurist AI - System Restart Test</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #00ff00;
+        }
+        .log {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid #00ff00;
+            padding-left: 10px;
+        }
+        .error {
+            color: #ff0000;
+            border-color: #ff0000;
+        }
+        .success {
+            color: #00ff00;
+            border-color: #00ff00;
+        }
+        .info {
+            color: #ffff00;
+            border-color: #ffff00;
+        }
+        button {
+            background-color: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #00ff00;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>CX Futurist AI - System Restart Test</h1>
+    <div id="status"></div>
+    <div>
+        <button onclick="testBackend()">Test Backend API</button>
+        <button onclick="testWebSocket()">Test WebSocket</button>
+        <button onclick="testAnalysis()">Test Analysis</button>
+    </div>
+    <div id="logs"></div>
+
+    <script>
+        let socket = null;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function testBackend() {
+            log('Testing backend API...', 'info');
+            try {
+                const response = await fetch('http://localhost:8100/health');
+                const data = await response.json();
+                log(`Backend Status: ${data.status}`, 'success');
+                log(`Services: ${JSON.stringify(data.services)}`, 'info');
+            } catch (error) {
+                log(`Backend Error: ${error.message}`, 'error');
+            }
+        }
+
+        function testWebSocket() {
+            log('Testing WebSocket connection...', 'info');
+            
+            if (socket) {
+                socket.disconnect();
+            }
+
+            // Try Socket.IO connection
+            socket = io('http://localhost:8100', {
+                path: '/ws/socket.io/',
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log('✅ Socket.IO connected!', 'success');
+                document.getElementById('status').innerHTML = '<h2 style="color: #00ff00">CONNECTED</h2>';
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`Socket.IO connection error: ${error.message}`, 'error');
+                // Try simple WebSocket
+                testSimpleWebSocket();
+            });
+
+            socket.on('message', (data) => {
+                log(`Message received: ${JSON.stringify(data)}`, 'info');
+            });
+
+            socket.on('agent:update', (data) => {
+                log(`Agent Update: ${JSON.stringify(data)}`, 'info');
+            });
+
+            socket.on('analysis:update', (data) => {
+                log(`Analysis Update: ${JSON.stringify(data)}`, 'info');
+            });
+        }
+
+        async function testSimpleWebSocket() {
+            log('Trying simple WebSocket...', 'info');
+            try {
+                const ws = new WebSocket('ws://localhost:8100/simple-ws');
+                
+                ws.onopen = () => {
+                    log('✅ Simple WebSocket connected!', 'success');
+                    document.getElementById('status').innerHTML = '<h2 style="color: #00ff00">CONNECTED (Simple WS)</h2>';
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    log(`Simple WS Message: ${JSON.stringify(data)}`, 'info');
+                };
+
+                ws.onerror = (error) => {
+                    log(`Simple WebSocket error: ${error}`, 'error');
+                };
+
+                ws.onclose = () => {
+                    log('Simple WebSocket closed', 'info');
+                };
+            } catch (error) {
+                log(`Simple WebSocket failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAnalysis() {
+            log('Testing analysis endpoint...', 'info');
+            try {
+                const response = await fetch('http://localhost:8100/api/analysis/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: 'Future of AI Agents',
+                        analysis_type: 'quick'
+                    })
+                });
+                const data = await response.json();
+                log(`Analysis Response: ${JSON.stringify(data)}`, 'success');
+            } catch (error) {
+                log(`Analysis Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test on load
+        window.onload = () => {
+            log('System restart test started', 'info');
+            testBackend();
+            setTimeout(() => testWebSocket(), 1000);
+        };
+    </script>
+</body>
+</html>

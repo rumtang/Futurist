@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CX Futurist AI - System Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .status-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .status-card h3 {
+            margin-top: 0;
+            color: #60a5fa;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .indicator.success {
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        .indicator.error {
+            background: #ef4444;
+        }
+        .indicator.warning {
+            background: #f59e0b;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        button {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .output {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .analysis-form {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CX Futurist AI - System Test Dashboard</h1>
+        
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>🔌 API Status</h3>
+                <div class="status">
+                    <div class="indicator" id="api-indicator"></div>
+                    <span id="api-status">Checking...</span>
+                </div>
+                <div class="status">
+                    <div class="indicator" id="openai-indicator"></div>
+                    <span id="openai-status">OpenAI: Checking...</span>
+                </div>
+                <div class="status">
+                    <div class="indicator" id="pinecone-indicator"></div>
+                    <span id="pinecone-status">Pinecone: Checking...</span>
+                </div>
+            </div>
+            
+            <div class="status-card">
+                <h3>🚀 System Info</h3>
+                <p>Test Server: <strong>http://localhost:8080</strong></p>
+                <p>Frontend: <strong>http://localhost:3002</strong></p>
+                <p>Full System: <strong>Ready for Docker deployment</strong></p>
+            </div>
+        </div>
+
+        <div class="analysis-form">
+            <h3>🤖 Test Analysis</h3>
+            <input 
+                type="text" 
+                id="topic-input" 
+                placeholder="Enter a topic to analyze (e.g., AI transforming customer service)"
+                value="AI transforming customer service"
+            />
+            <button onclick="runAnalysis()" id="analyze-btn">Run Analysis</button>
+            <button onclick="testPinecone()" id="pinecone-btn">Test Pinecone</button>
+            <button onclick="checkHealth()" id="health-btn">Refresh Status</button>
+        </div>
+
+        <div class="output" id="output" style="display: none;">
+            <h4>Output:</h4>
+            <pre id="output-content"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080';
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('api-indicator').className = 'indicator success';
+                document.getElementById('api-status').textContent = 'API Running';
+                
+                document.getElementById('openai-indicator').className = 
+                    data.services.openai === '✅' ? 'indicator success' : 'indicator error';
+                document.getElementById('openai-status').textContent = 
+                    `OpenAI: ${data.services.openai === '✅' ? 'Connected' : 'Not Connected'}`;
+                
+                document.getElementById('pinecone-indicator').className = 
+                    data.services.pinecone === '✅' ? 'indicator success' : 'indicator error';
+                document.getElementById('pinecone-status').textContent = 
+                    `Pinecone: ${data.services.pinecone === '✅' ? 'Connected' : 'Not Connected'}`;
+                
+            } catch (error) {
+                document.getElementById('api-indicator').className = 'indicator error';
+                document.getElementById('api-status').textContent = 'API Offline';
+                showOutput(`Error: ${error.message}`);
+            }
+        }
+        
+        async function runAnalysis() {
+            const topic = document.getElementById('topic-input').value;
+            if (!topic) {
+                alert('Please enter a topic');
+                return;
+            }
+            
+            document.getElementById('analyze-btn').disabled = true;
+            showOutput('Running analysis...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/test-analysis?topic=${encodeURIComponent(topic)}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showOutput(JSON.stringify(data, null, 2));
+                } else {
+                    showOutput(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                showOutput(`Error: ${error.message}`);
+            } finally {
+                document.getElementById('analyze-btn').disabled = false;
+            }
+        }
+        
+        async function testPinecone() {
+            document.getElementById('pinecone-btn').disabled = true;
+            showOutput('Testing Pinecone connection...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/test-pinecone`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showOutput(JSON.stringify(data, null, 2));
+                } else {
+                    showOutput(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                showOutput(`Error: ${error.message}`);
+            } finally {
+                document.getElementById('pinecone-btn').disabled = false;
+            }
+        }
+        
+        function showOutput(content) {
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output-content').textContent = content;
+        }
+        
+        // Check health on load
+        checkHealth();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(checkHealth, 30000);
+    </script>
+</body>
+</html>

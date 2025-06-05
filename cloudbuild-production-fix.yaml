@@ -1,0 +1,46 @@
+steps:
+  # Build the backend container with Socket.IO support
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cx-futurist/api:${BUILD_ID}'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cx-futurist/api:latest'
+      - '-f'
+      - 'Dockerfile.production'
+      - '.'
+    id: 'build-backend'
+
+  # Push the backend container
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'us-central1-docker.pkg.dev/$PROJECT_ID/cx-futurist/api']
+    waitFor: ['build-backend']
+    id: 'push-backend'
+
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cx-futurist-api'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/cx-futurist/api:${BUILD_ID}'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--port=8080'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=API_HOST=0.0.0.0,CLOUD_RUN_PORT=8080'
+      - '--set-secrets=OPENAI_API_KEY=openai-api-key:latest'
+      - '--cpu=2'
+      - '--memory=2Gi'
+      - '--timeout=3600'
+      - '--max-instances=10'
+    id: 'deploy-backend'
+    waitFor: ['push-backend']
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: '100'
+
+timeout: '1800s'  # 30 minutes

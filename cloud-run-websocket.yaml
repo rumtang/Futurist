@@ -1,0 +1,59 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cx-futurist-api
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+    # Enable WebSocket support
+    run.googleapis.com/binary-authorization: default
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/minScale: "1"
+        run.googleapis.com/startup-cpu-boost: "true"
+        # Critical: Enable HTTP/2 for WebSocket upgrade
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      containerConcurrency: 80  # Reduced for WebSocket connections
+      timeoutSeconds: 3600  # Increased for long-lived WebSocket connections
+      containers:
+      - image: us-central1-docker.pkg.dev/insightcommand-461701/cx-futurist/api:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: PYTHONPATH
+          value: /app
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-api-key
+              key: latest
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3

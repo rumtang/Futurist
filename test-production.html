@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CX Futurist AI - Production Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 2px solid #4F46E5;
+            padding-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+        .status.pending {
+            background: #f59e0b;
+            color: white;
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .api-url-group {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+        .api-url-group input {
+            flex: 1;
+        }
+        button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #4338CA;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .log-entry.error {
+            color: #dc2626;
+        }
+        .log-entry.success {
+            color: #059669;
+        }
+        .log-entry.info {
+            color: #2563eb;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+        }
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 CX Futurist AI - Production Test</h1>
+        
+        <div class="input-group">
+            <label>Backend API URL:</label>
+            <div class="api-url-group">
+                <input type="text" id="apiUrl" placeholder="https://cx-futurist-api-xxx.run.app" />
+                <button onclick="updateUrls()">Update URLs</button>
+            </div>
+            <small style="color: #666;">Enter your deployed backend URL (from Cloud Run)</small>
+        </div>
+
+        <div class="test-section">
+            <h3>1️⃣ API Health Check</h3>
+            <p>Status: <span id="apiStatus" class="status disconnected">Not Tested</span></p>
+            <button onclick="testAPI()">Test API Connection</button>
+            <div id="apiResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2️⃣ WebSocket Connection</h3>
+            <p>Status: <span id="wsStatus" class="status disconnected">Disconnected</span></p>
+            <button onclick="testWebSocket()">Connect WebSocket</button>
+            <div id="wsResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3️⃣ Analysis Request</h3>
+            <div class="input-group">
+                <label>Analysis Topic:</label>
+                <textarea id="analysisTopic" rows="3" placeholder="Enter your analysis topic...">How will AI agents transform customer service in the next 2 years?</textarea>
+            </div>
+            <button onclick="startAnalysis()" id="analysisBtn" disabled>Start Analysis</button>
+            <div id="analysisResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Live Activity Log</h3>
+            <div id="activityLog" style="max-height: 400px; overflow-y: auto;">
+                <div class="log-entry info">Waiting for connection...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let apiBaseUrl = '';
+        let wsUrl = '';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('activityLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateUrls() {
+            const input = document.getElementById('apiUrl').value.trim();
+            if (!input) {
+                alert('Please enter a backend URL');
+                return;
+            }
+            
+            apiBaseUrl = input.replace(/\/$/, '');
+            // Convert HTTP to WS and HTTPS to WSS
+            wsUrl = apiBaseUrl.replace(/^http/, 'ws') + '/simple-ws';
+            
+            log(`URLs updated - API: ${apiBaseUrl}, WebSocket: ${wsUrl}`, 'success');
+        }
+
+        async function testAPI() {
+            if (!apiBaseUrl) {
+                alert('Please set the API URL first');
+                return;
+            }
+
+            const statusEl = document.getElementById('apiStatus');
+            const resultsEl = document.getElementById('apiResults');
+            
+            statusEl.className = 'status pending';
+            statusEl.textContent = 'Testing...';
+            resultsEl.innerHTML = '';
+
+            try {
+                log(`Testing API health check at ${apiBaseUrl}/health`);
+                const response = await fetch(`${apiBaseUrl}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusEl.className = 'status connected';
+                    statusEl.textContent = 'Connected';
+                    resultsEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    log('API health check passed!', 'success');
+                    
+                    // Enable WebSocket test
+                    document.querySelector('button[onclick="testWebSocket()"]').disabled = false;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusEl.className = 'status disconnected';
+                statusEl.textContent = 'Failed';
+                resultsEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                log(`API test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testWebSocket() {
+            if (!wsUrl) {
+                alert('Please set the API URL first');
+                return;
+            }
+
+            const statusEl = document.getElementById('wsStatus');
+            const resultsEl = document.getElementById('wsResults');
+            
+            if (ws) {
+                ws.close();
+            }
+
+            statusEl.className = 'status pending';
+            statusEl.textContent = 'Connecting...';
+            resultsEl.innerHTML = '';
+
+            log(`Connecting to WebSocket at ${wsUrl}`);
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    statusEl.className = 'status connected';
+                    statusEl.textContent = 'Connected';
+                    log('WebSocket connected!', 'success');
+                    document.getElementById('analysisBtn').disabled = false;
+                    
+                    // Send ping
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`WebSocket message: ${data.type}`, 'info');
+                        
+                        // Display message in results
+                        const msgDiv = document.createElement('div');
+                        msgDiv.style.margin = '5px 0';
+                        msgDiv.innerHTML = `<strong>${data.type}:</strong> ${JSON.stringify(data, null, 2)}`;
+                        resultsEl.appendChild(msgDiv);
+                        
+                        // Handle specific message types
+                        if (data.type === 'agent:thought') {
+                            log(`Agent ${data.agent}: ${data.thought.content}`, 'info');
+                        } else if (data.type === 'analysis:completed') {
+                            displayAnalysisResults(data.results);
+                        }
+                    } catch (e) {
+                        log('Received non-JSON message: ' + event.data, 'error');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    statusEl.className = 'status disconnected';
+                    statusEl.textContent = 'Error';
+                    log(`WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+                };
+
+                ws.onclose = () => {
+                    statusEl.className = 'status disconnected';
+                    statusEl.textContent = 'Disconnected';
+                    log('WebSocket disconnected', 'info');
+                    document.getElementById('analysisBtn').disabled = true;
+                };
+
+            } catch (error) {
+                statusEl.className = 'status disconnected';
+                statusEl.textContent = 'Failed';
+                log(`WebSocket connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        function startAnalysis() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocket is not connected');
+                return;
+            }
+
+            const topic = document.getElementById('analysisTopic').value.trim();
+            if (!topic) {
+                alert('Please enter an analysis topic');
+                return;
+            }
+
+            const resultsEl = document.getElementById('analysisResults');
+            resultsEl.innerHTML = '<p>Starting analysis...</p>';
+
+            const message = {
+                type: 'request_analysis',
+                id: `analysis_${Date.now()}`,
+                topic: topic,
+                depth: 'comprehensive',
+                timeframe: '1-2 years'
+            };
+
+            log(`Starting analysis: ${topic}`, 'info');
+            ws.send(JSON.stringify(message));
+        }
+
+        function displayAnalysisResults(results) {
+            const resultsEl = document.getElementById('analysisResults');
+            resultsEl.innerHTML = `
+                <h4>Analysis Results:</h4>
+                <p><strong>Summary:</strong> ${results.summary}</p>
+                <h5>Key Insights:</h5>
+                <ul>
+                    ${results.insights.map(insight => `<li>${insight}</li>`).join('')}
+                </ul>
+                <p><strong>Confidence:</strong> ${(results.confidence * 100).toFixed(0)}%</p>
+            `;
+            log('Analysis completed!', 'success');
+        }
+
+        // Auto-detect URL from current location if in production
+        window.onload = () => {
+            const currentUrl = window.location.href;
+            if (currentUrl.includes('run.app')) {
+                // We're in production, try to auto-detect backend URL
+                const match = currentUrl.match(/https:\/\/cx-futurist-frontend-.*\.run\.app/);
+                if (match) {
+                    // Replace 'frontend' with 'api' in the URL
+                    const guessedApiUrl = currentUrl.replace('cx-futurist-frontend', 'cx-futurist-api');
+                    document.getElementById('apiUrl').value = guessedApiUrl;
+                    log('Auto-detected production environment', 'info');
+                }
+            }
+        };
+    </script>
+</body>
+</html>

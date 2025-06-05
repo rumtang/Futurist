@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - cx-futurist-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    ports:
+      - "8000:8080"  # Map to container's 8080 port
+      - "8001:8001"  # WebSocket port
+    environment:
+      - REDIS_HOST=redis://redis:6379
+      - API_HOST=0.0.0.0
+      - PORT=8080
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:cached
+      - ./outputs:/app/outputs:cached
+      - ./logs:/app/logs:cached
+    command: >
+      sh -c "
+        python -m uvicorn src.main:app 
+        --host 0.0.0.0 
+        --port 8080 
+        --reload 
+        --log-level info
+      "
+    restart: unless-stopped
+    networks:
+      - cx-futurist-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8001
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app:cached
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    restart: unless-stopped
+    networks:
+      - cx-futurist-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Add a reverse proxy for production-like setup
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+    networks:
+      - cx-futurist-network
+    profiles:
+      - production-like
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  cx-futurist-network:
+    driver: bridge

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Polling Test</title>
+</head>
+<body>
+    <h1>CX Futurist Dashboard - Polling Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="agents"></div>
+    
+    <script>
+        const API_URL = 'https://cx-futurist-backend-407245526867.us-central1.run.app';
+        
+        async function updateAgents() {
+            try {
+                const response = await fetch(`${API_URL}/api/agents/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('status').innerHTML = '✅ Connected';
+                    
+                    let html = '<h2>Agent Status:</h2><ul>';
+                    for (const [id, agent] of Object.entries(data.agents)) {
+                        html += `<li>${agent.description}: ${agent.status}</li>`;
+                    }
+                    html += '</ul>';
+                    
+                    document.getElementById('agents').innerHTML = html;
+                } else {
+                    document.getElementById('status').innerHTML = '❌ API Error';
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Connection Error';
+                console.error('Error:', error);
+            }
+        }
+        
+        // Poll every 2 seconds
+        updateAgents();
+        setInterval(updateAgents, 2000);
+    </script>
+</body>
+</html>

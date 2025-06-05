@@ -1,0 +1,42 @@
+# Production Dockerfile optimized for fast builds and small size
+FROM python:3.12-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install only essential runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements-production.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements-production.txt
+
+# Copy application code
+COPY src ./src
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Run the application - use Socket.IO version
+CMD ["python", "-m", "uvicorn", "src.main_production_socketio:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]

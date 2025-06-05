@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend Flow</title>
+</head>
+<body>
+    <h1>CX Futurist AI - Frontend Test</h1>
+    <div id="status">Loading...</div>
+    <button onclick="startAnalysis()">Start Analysis</button>
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'https://cx-futurist-backend-177456512655.us-central1.run.app';
+        
+        async function startAnalysis() {
+            const statusEl = document.getElementById('status');
+            const resultsEl = document.getElementById('results');
+            
+            statusEl.textContent = 'Starting analysis...';
+            resultsEl.innerHTML = '';
+            
+            try {
+                // Start analysis
+                const response = await fetch(`${API_URL}/api/analysis-direct/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: 'AI transforming customer experience in 2025',
+                        depth: 'quick'
+                    })
+                });
+                
+                const data = await response.json();
+                statusEl.textContent = `Analysis started: ${data.request_id}`;
+                
+                // Poll for results
+                const pollInterval = setInterval(async () => {
+                    const statusResponse = await fetch(`${API_URL}/api/analysis-direct/${data.request_id}`);
+                    const status = await statusResponse.json();
+                    
+                    statusEl.textContent = `Status: ${status.status} (Progress: ${status.progress}%)`;
+                    
+                    if (status.status === 'completed') {
+                        clearInterval(pollInterval);
+                        displayResults(status.results);
+                    } else if (status.status === 'failed') {
+                        clearInterval(pollInterval);
+                        statusEl.textContent = `Failed: ${status.error}`;
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        function displayResults(results) {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML = `
+                <h2>Analysis Complete</h2>
+                <h3>Summary:</h3>
+                <p>${results.summary || 'No summary available'}</p>
+                <h3>Key Insights:</h3>
+                <ul>${(results.key_insights || []).map(i => `<li>${i}</li>`).join('')}</ul>
+                <h3>Raw Results:</h3>
+                <pre>${JSON.stringify(results, null, 2)}</pre>
+            `;
+        }
+        
+        // Test on load
+        document.getElementById('status').textContent = 'Ready to test';
+    </script>
+</body>
+</html>

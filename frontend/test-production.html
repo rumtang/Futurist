@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Production Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #222;
+        }
+        .success { color: #4ade80; }
+        .error { color: #ef4444; }
+        .warning { color: #fbbf24; }
+        pre {
+            background: #111;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>CX Futurist AI - Frontend Production Test</h1>
+    
+    <div class="test-section">
+        <h2>Environment Configuration</h2>
+        <p>Testing runtime configuration loading...</p>
+        <pre id="config-output"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>API Connectivity</h2>
+        <button onclick="testAPI()">Test API Connection</button>
+        <pre id="api-output"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>WebSocket Connectivity</h2>
+        <button onclick="testWebSocket()">Test WebSocket Connection</button>
+        <pre id="ws-output"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Page Loading Tests</h2>
+        <button onclick="testPages()">Test All Pages</button>
+        <div id="page-output"></div>
+    </div>
+
+    <script>
+        // Check if runtime config is available
+        function checkConfig() {
+            const configEl = document.getElementById('config-output');
+            
+            if (window.__RUNTIME_CONFIG__) {
+                configEl.innerHTML = `<span class="success">✓ Runtime config loaded</span>\n`;
+                configEl.innerHTML += `API URL: ${window.__RUNTIME_CONFIG__.NEXT_PUBLIC_API_URL || 'Not set'}\n`;
+                configEl.innerHTML += `WebSocket URL: ${window.__RUNTIME_CONFIG__.NEXT_PUBLIC_WEBSOCKET_URL || 'Not set'}`;
+            } else {
+                configEl.innerHTML = `<span class="warning">⚠ Runtime config not found, using defaults</span>\n`;
+                configEl.innerHTML += `This is expected in local development`;
+            }
+        }
+
+        // Test API connection
+        async function testAPI() {
+            const outputEl = document.getElementById('api-output');
+            const apiUrl = window.__RUNTIME_CONFIG__?.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+            
+            outputEl.innerHTML = `Testing ${apiUrl}/api/health...\n`;
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    outputEl.innerHTML += `<span class="success">✓ API is healthy</span>\n`;
+                    outputEl.innerHTML += JSON.stringify(data, null, 2);
+                } else {
+                    outputEl.innerHTML += `<span class="error">✗ API returned ${response.status}</span>\n`;
+                    outputEl.innerHTML += await response.text();
+                }
+            } catch (error) {
+                outputEl.innerHTML += `<span class="error">✗ API connection failed</span>\n`;
+                outputEl.innerHTML += error.message;
+            }
+        }
+
+        // Test WebSocket connection
+        function testWebSocket() {
+            const outputEl = document.getElementById('ws-output');
+            const wsUrl = window.__RUNTIME_CONFIG__?.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080';
+            const fullUrl = `${wsUrl}/simple-ws`;
+            
+            outputEl.innerHTML = `Connecting to ${fullUrl}...\n`;
+            
+            try {
+                const ws = new WebSocket(fullUrl);
+                
+                ws.onopen = () => {
+                    outputEl.innerHTML += `<span class="success">✓ WebSocket connected</span>\n`;
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                };
+                
+                ws.onmessage = (event) => {
+                    outputEl.innerHTML += `Received: ${event.data}\n`;
+                };
+                
+                ws.onerror = (error) => {
+                    outputEl.innerHTML += `<span class="error">✗ WebSocket error</span>\n`;
+                };
+                
+                ws.onclose = (event) => {
+                    outputEl.innerHTML += `WebSocket closed (code: ${event.code})\n`;
+                };
+                
+                // Close after 5 seconds
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.close();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                outputEl.innerHTML += `<span class="error">✗ Failed to create WebSocket</span>\n`;
+                outputEl.innerHTML += error.message;
+            }
+        }
+
+        // Test page loading
+        async function testPages() {
+            const outputEl = document.getElementById('page-output');
+            const pages = ['/', '/dashboard', '/analysis', '/knowledge', '/scenarios'];
+            
+            outputEl.innerHTML = '<h3>Testing page routes...</h3>';
+            
+            for (const page of pages) {
+                try {
+                    const response = await fetch(page);
+                    if (response.ok) {
+                        outputEl.innerHTML += `<div><span class="success">✓</span> ${page} - OK</div>`;
+                    } else {
+                        outputEl.innerHTML += `<div><span class="error">✗</span> ${page} - ${response.status}</div>`;
+                    }
+                } catch (error) {
+                    outputEl.innerHTML += `<div><span class="error">✗</span> ${page} - Failed</div>`;
+                }
+            }
+        }
+
+        // Run config check on load
+        window.onload = () => {
+            checkConfig();
+        };
+    </script>
+</body>
+</html>
