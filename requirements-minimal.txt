@@ -1,0 +1,23 @@
+# Minimal requirements for Cloud Run deployment
+# Core AI
+openai>=1.12.0
+backoff>=2.2.1
+
+# API Framework
+fastapi>=0.108.0
+uvicorn>=0.25.0
+pydantic>=2.5.3
+pydantic-settings>=2.1.0
+
+# WebSocket Support (minimal)
+python-socketio>=5.11.0
+websockets>=12.0
+
+# Utilities
+python-dotenv>=1.0.0
+loguru>=0.7.2
+aiohttp>=3.9.1
+
+# Essential for agents
+numpy>=1.26.2
+tqdm>=4.66.1

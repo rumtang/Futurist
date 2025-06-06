@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements-production.txt .
+COPY requirements-minimal.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements-production.txt
+    pip install --no-cache-dir -r requirements-minimal.txt
 
 # Copy application code
 COPY src ./src
@@ -38,5 +38,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # Expose port
 EXPOSE 8080
 
-# Run the application - use Socket.IO version
-CMD ["python", "-m", "uvicorn", "src.main_production_socketio:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+# Run the application
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
