@@ -15,9 +15,7 @@ from src.api.base_api import create_app
 from src.websocket.socket_server import socket_app, sio
 from src.api.analysis_endpoints import router as analysis_router
 from src.api.analysis_direct import router as analysis_direct_router
-from src.api.knowledge_endpoints import router as knowledge_router
-from src.api.trend_endpoints import router as trend_router
-from src.api.workflow_endpoints import router as workflow_router
+from src.api.simple_analysis import router as simple_analysis_router
 from src.api.agent_endpoints import router as agent_router
 from src.orchestrator.simple_orchestrator import SimpleOrchestrator
 from src.websocket.socket_server import agent_stream_callback
@@ -52,25 +50,13 @@ async def lifespan(app: FastAPI):
     
     # Initialize services with graceful degradation
     
-    # Try to initialize vector database (Pinecone)
-    try:
-        from src.tools.vector_tools import initialize_pinecone
-        await initialize_pinecone()
-        app.state.services["pinecone"] = True
-        logger.info("✅ Vector database (Pinecone) initialized successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  Vector database (Pinecone) initialization failed: {e}")
-        logger.warning("System will run without vector search capabilities")
+    # Skip Pinecone initialization - removed for minimization
+    app.state.services["pinecone"] = False
+    logger.info("ℹ️  Vector database disabled (minimized version)")
     
-    # Try to initialize Redis cache
-    try:
-        from src.tools.cache_tools import initialize_redis
-        await initialize_redis()
-        app.state.services["redis"] = True
-        logger.info("✅ Redis cache initialized successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  Redis cache initialization failed: {e}")
-        logger.warning("System will run without caching capabilities")
+    # Skip Redis initialization - removed for minimization
+    app.state.services["redis"] = False
+    logger.info("ℹ️  Redis cache disabled (minimized version)")
     
     # Initialize the simple orchestrator with all agents (always required)
     try:
@@ -104,23 +90,9 @@ async def lifespan(app: FastAPI):
     
     # Cleanup with graceful handling
     
-    # Close vector database connections if available
-    if app.state.services.get("pinecone"):
-        try:
-            from src.tools.vector_tools import close_pinecone
-            await close_pinecone()
-            logger.info("✅ Vector database connections closed")
-        except Exception as e:
-            logger.error(f"Error closing Pinecone: {e}")
+    # Pinecone not used in minimized version
     
-    # Close Redis connections if available
-    if app.state.services.get("redis"):
-        try:
-            from src.tools.cache_tools import close_redis
-            await close_redis()
-            logger.info("✅ Redis connections closed")
-        except Exception as e:
-            logger.error(f"Error closing Redis: {e}")
+    # Redis not used in minimized version
     
     logger.info("🛑 CX Futurist AI system shut down successfully")
 
@@ -135,9 +107,7 @@ app.mount("/ws", socket_app)
 # Include API routers
 app.include_router(analysis_router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(analysis_direct_router, prefix="/api/analysis-direct", tags=["Analysis-Direct"])
-app.include_router(knowledge_router, prefix="/api/knowledge", tags=["Knowledge"])
-app.include_router(trend_router, prefix="/api/trends", tags=["Trends"])
-app.include_router(workflow_router, prefix="/api/workflows", tags=["Workflows"])
+app.include_router(simple_analysis_router, prefix="/api/simple-analysis", tags=["Simple-Analysis"])
 app.include_router(agent_router, prefix="/api/agents", tags=["Agents"])
 
 

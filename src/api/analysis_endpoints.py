@@ -12,7 +12,7 @@ from src.api.base_api import (
     rate_limit
 )
 from src.agents import get_agent
-from src.tools.cache_tools import cache_analysis_result, get_cached_analysis
+# from src.tools.cache_tools import cache_analysis_result, get_cached_analysis
 from src.websocket.socket_server import connection_manager
 
 router = APIRouter()
@@ -76,11 +76,6 @@ async def start_analysis(
 @router.get("/{request_id}")
 async def get_analysis_status(request_id: str):
     """Get analysis status and results."""
-    # Check cache first
-    cached = await get_cached_analysis(request_id)
-    if cached:
-        return cached
-    
     # Check storage
     if request_id not in analysis_storage:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -168,9 +163,6 @@ async def run_analysis(request_id: str, request: AnalysisRequest, orchestrator):
         analysis_storage[request_id]["status"] = "completed"
         analysis_storage[request_id]["results"] = results
         analysis_storage[request_id]["completed_at"] = datetime.now().isoformat()
-        
-        # Cache results
-        await cache_analysis_result(request_id, analysis_storage[request_id])
         
         # Notify completion
         await connection_manager.broadcast_agent_update({

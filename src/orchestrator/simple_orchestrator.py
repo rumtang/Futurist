@@ -94,13 +94,16 @@ class SimpleOrchestrator:
     
     async def _broadcast_workflow_update(self, workflow_id: str, status: str, data: Any = None):
         """Broadcast workflow status updates."""
-        await self.stream_callback({
-            "type": "workflow_update",
-            "workflow_id": workflow_id,
-            "status": status,
-            "data": data,
-            "timestamp": time.time()
-        })
+        try:
+            await self.stream_callback({
+                "type": "workflow_update",
+                "workflow_id": workflow_id,
+                "status": status,
+                "data": data,
+                "timestamp": time.time()
+            })
+        except Exception as e:
+            logger.warning(f"Failed to broadcast workflow update: {e}")
     
     async def analyze_trend(self, topic: str, depth: str = "comprehensive") -> WorkflowResult:
         """
