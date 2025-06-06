@@ -8,9 +8,9 @@ const isProduction = typeof window !== 'undefined' &&
 
 window.__RUNTIME_CONFIG__ = {
   NEXT_PUBLIC_API_URL: isProduction 
-    ? 'https://cx-futurist-backend-6qdrzgr4ga-uc.a.run.app'  // CX Futurist backend
+    ? 'https://cx-futurist-api-4bgenndxea-uc.a.run.app'  // CX Futurist backend
     : (window.NEXT_PUBLIC_API_URL || 'http://localhost:8080'),
   NEXT_PUBLIC_WEBSOCKET_URL: isProduction
-    ? 'wss://cx-futurist-backend-6qdrzgr4ga-uc.a.run.app'
+    ? 'wss://cx-futurist-api-4bgenndxea-uc.a.run.app'
     : (window.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080')
 };
