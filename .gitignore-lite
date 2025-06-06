@@ -1,0 +1,38 @@
+# Exclude test files
+test*.py
+test*.html
+test*.js
+*test*
+TEST*
+
+# Exclude deployment scripts
+deploy*.sh
+cloudbuild*.yaml
+Dockerfile*
+
+# Exclude documentation
+*.md
+!README.md
+
+# Exclude config variations
+*.example
+*.old
+*.backup
+
+# Exclude HTML test files
+*.html
+
+# Exclude validation scripts
+validate*.sh
+setup*.sh
+run_all_tests.py
+check_*.py
+quick_test*.py
+
+# Exclude alternative main files
+src/main_*.py
+!src/main.py
+
+# Development files
+.env
+.DS_Store
