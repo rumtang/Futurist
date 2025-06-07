@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     // Check if we can reach the backend
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
     let backendStatus = 'unknown'
     let backendError = null
     
@@ -45,7 +45,7 @@ export async function GET() {
         error: backendError,
       },
       websocket: {
-        url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080',
+        url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081',
       },
     })
   } catch (error) {

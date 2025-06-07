@@ -8,7 +8,7 @@ const nextConfig = {
   
   // API configuration
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://cx-futurist-api-407245526867.us-central1.run.app';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
     return [
       {
         source: '/api/:path*',
@@ -51,8 +51,8 @@ const nextConfig = {
   
   // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://cx-futurist-api-407245526867.us-central1.run.app',
-    NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://cx-futurist-api-407245526867.us-central1.run.app',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081',
+    NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081',
   },
   
   // Webpack configuration for module resolution

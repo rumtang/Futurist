@@ -33,11 +33,12 @@ class SocketClient {
   
   private connect() {
     // Extract base URL from websocket URL (convert wss:// to https://)
-    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8001'
-    const baseUrl = wsUrl.replace('wss://', 'https://').replace('ws://', 'http://')
+    const baseUrl =
+      (process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? 'ws://localhost:8081/ws')
+        .replace(/^http/, 'ws');
     
     this.socket = io(baseUrl, {
-      path: '/ws/socket.io/',
+      path: '/socket.io/',
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
